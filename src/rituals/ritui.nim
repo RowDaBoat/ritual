@@ -90,5 +90,5 @@ proc drawBar*(
 proc drawLabel*(vtui: var Vtui, name: string, label: string, maxNameLen: int) =
   let paddedName = align(name, maxNameLen)
   let begin = "\r" & eraseLine & fg(52) & "│ " & fg(88)
-  stdout.write begin & paddedName & " " & reset & label & "\n"
+  stdout.write begin & paddedName & " " & reset & label & reset & "\n"
   inc vtui.drawnLines

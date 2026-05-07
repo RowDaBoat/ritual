@@ -1,7 +1,7 @@
-packageName   = "ritual"
+packageName   = "rituals"
 version       = "1.0.0"
 author        = "RowDaBoat"
-description   = "`ritual` allows reciting spells to invoke commands."
+description   = "`rituals` allows reciting spells to invoke commands."
 license       = "Copyright (C) RowDaBoat"
 srcDir        = "src"
 skipFiles     = @[]

@@ -71,3 +71,23 @@ requires "ritual"
 The `tui:` template has a few controls available:
 - `bar(value)` or `bar(label, value)` draws a progress bar.
 - `label(text)` draws a status label.
+
+
+## Output management
+Each task can produce log output written log files which are created lazily on first write, so tasks that produce no output don't create empty files.
+
+Log files are written to `log/{name}.log`, with an incremental suffix for repeated names (`{name}1.log`, `{name}2.log`, etc.). To change the output directory:
+```nim
+ritual "build":
+  logDir "build-output"
+  # ...
+```
+
+Inside a `task` block, use `log(message)` to write a line to the task's log file:
+```nim
+task "setup":
+  log("starting setup")
+  # ...
+```
+
+The `cmd` task automatically forwards both stdout and stderr to its log file.

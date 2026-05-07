@@ -5,7 +5,8 @@ import ritui
 import jobs
 import workers
 import monitor
-export ritui, jobs
+import output
+export ritui, jobs, output
 
 
 var ritualExecuted = false
@@ -31,10 +32,21 @@ template ritual*(ritualName: string, body: untyped) =
 
     var pool = newWorkerPool()
     var jobStack: seq[Job]
+    var logCounter = newLogCounter()
+
+    template logDir(dir: string) {.used.} =
+      logCounter.outputDir = dir
 
     template task(taskName: string, taskBody: untyped) =
+      let taskLogPath = logCounter.nextLogPath(taskName)
       let job = run(taskName, proc() =
+        let taskLog {.inject, used.} = newTaskLog(taskLogPath)
+
+        template log(message: string) {.used.} =
+          taskLog.log(message)
+
         taskBody
+        taskLog.close()
       )
       jobStack[^1].children.add job
 

@@ -1,21 +1,23 @@
 import std/[os, osproc, streams, httpclient, strutils]
-
-
-#[
-iterator cmd*(command: string): string =
-  let process = startProcess(command, options = {poStdErrToStdOut, poEvalCommand})
-  let stream = process.outputStream
-
-  while not stream.atEnd:
-    yield stream.readLine()
-
-  process.close()
-]#
+import output
 
 
 template cmd*(command: string, name: string = "cmd") =
-  #TODO
-  discard
+  task name:
+    let process = startProcess(command, options = {poStdErrToStdOut, poEvalCommand})
+    let stream = process.outputStream
+
+    while not stream.atEnd:
+      let line = stream.readLine()
+      taskLog.write(line & "\n")
+
+    process.close()
+
+  tui:
+    if state == Done:
+      label(bold & command)
+    else:
+      label(command)
 
 
 template copy*(source: string, destination: string, name: string = "copy") =
