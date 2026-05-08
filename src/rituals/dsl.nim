@@ -16,7 +16,7 @@ addExitProc(proc() {.noconv.} =
     return
 
   if paramCount() < 1:
-    echo "No ritual to run."
+    echo "No ritual to invoke."
   else:
     echo &"Unknown ritual: '{paramStr(1)}'"
 
@@ -33,21 +33,31 @@ template ritual*(ritualName: string, body: untyped) =
     var pool = newWorkerPool()
     var jobStack: seq[Job]
     var logCounter = newLogCounter()
+    var ritualMonitor: ptr Monitor = cast[ptr Monitor](allocShared0(sizeof(Monitor)))
 
     template logDir(dir: string) {.used.} =
       logCounter.outputDir = dir
 
     template task(taskName: string, taskBody: untyped) =
       let taskLogPath = logCounter.nextLogPath(taskName)
-      let job = run(taskName, proc() =
+      let job = run(taskName, nil)
+
+      job.procedure = proc() =
         let taskLog {.inject, used.} = newTaskLog(taskLogPath)
 
         template log(message: string) {.used.} =
           taskLog.log(message)
 
-        taskBody
+        try:
+          taskBody
+        except Exception as error:
+          taskLog.close()
+          job.state = Failed
+          {.cast(gcsafe).}:
+            ritualMonitor[].fail(taskName, error.msg, taskLogPath)
+          quit(1)
         taskLog.close()
-      )
+
       jobStack[^1].children.add job
 
     template tui(tuiBody: untyped) =
@@ -60,14 +70,14 @@ template ritual*(ritualName: string, body: untyped) =
         maxNameLen: int,
         tick {.inject.}: int
       ) {.closure.} =
-        template bar(value: float) {.used.} =
-          vtui.drawBar(name, "", value, maxNameLen, tick)
+        template bar(value: float, barState {.inject.}: TaskState = state) {.used.} =
+          vtui.drawBar(name, "", value, maxNameLen, tick, barState)
 
-        template bar(label: string, value: float) {.used.} =
-          vtui.drawBar(name, label, value, maxNameLen, tick)
+        template bar(label: string, value: float, barState {.inject.}: TaskState = state) {.used.} =
+          vtui.drawBar(name, label, value, maxNameLen, tick, barState)
 
-        template label(text: string) {.used.} =
-          vtui.drawLabel(name, text, maxNameLen)
+        template label(text: string, labelState {.inject.}: TaskState = state) {.used.} =
+          vtui.drawLabel(name, text, maxNameLen, tick, labelState)
 
         tuiBody
 
@@ -88,8 +98,15 @@ template ritual*(ritualName: string, body: untyped) =
     body
 
     let rootJob = jobStack.pop()
-    var monitor = newMonitor(ritualName, rootJob)
+    ritualMonitor[] = newMonitor(ritualName, rootJob)
+
+    setControlCHook(proc() {.noconv.} =
+      stdout.write reset & showCursor & "\n"
+      stdout.flushFile()
+      quit(0)
+    )
 
     discard pool.execute(rootJob)
     pool.shutdown()
-    monitor.stop()
+    ritualMonitor[].stop()
+    deallocShared(ritualMonitor)

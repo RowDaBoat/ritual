@@ -2,6 +2,13 @@ import std/[os, osproc, streams, httpclient, strutils]
 import output
 
 
+type Nim* = object
+  discard
+
+
+let nim* = Nim()
+
+
 template cmd*(command: string, name: string = "cmd") =
   task name:
     let process = startProcess(command, options = {poStdErrToStdOut, poEvalCommand})
@@ -15,9 +22,9 @@ template cmd*(command: string, name: string = "cmd") =
 
   tui:
     if state == Done:
-      label(bold & command)
+      label(bold & command, state)
     else:
-      label(command)
+      label(command, state)
 
 
 template copy*(source: string, destination: string, name: string = "copy") =
@@ -25,31 +32,41 @@ template copy*(source: string, destination: string, name: string = "copy") =
     copyFile(source, destination)
   tui:
     if state == Done:
-      label(source & " → " & bold & destination)
+      label(source & " → " & bold & destination, state)
     else:
-      label(source & " → " & destination)
+      label(source & " → " & destination, state)
 
 
 template move*(source: string, destination: string, name: string = "move") =
   task name:
     moveFile(source, destination)
   tui:
-    let boldCompleted = if state == Done: bold else: ""
-    label(source & " → " & boldCompleted & destination)
+    if state == Done:
+      label(source & " → " & bold & destination, state)
+    else:
+      label(source & " → " & destination, state)
 
 
 template mkdir*(path: string, name: string = "mkdir") =
   task name:
     createDir(path)
   tui:
-    label(path)
+    label(path, state)
 
 
-template remove*(path: string, name: string = "remove") =
-  task name:
+proc removePath(path: string) =
+  if dirExists(path):
+    removeDir(path)
+  elif fileExists(path):
     removeFile(path)
+
+
+template remove*(pattern: string, name: string = "remove") =
+  task name:
+    for path in walkPattern(pattern):
+      removePath(path)
   tui:
-    label(path)
+    label(pattern, state)
 
 
 template download*(
@@ -77,9 +94,9 @@ template download*(
 
   tui:
     if state == Done:
-      bar(target, 1.0)
+      bar(target, 1.0, state)
     else:
-      bar(target, downloadProgress[])
+      bar(target, downloadProgress[], state)
 
 
 template wait*(seconds: float, name: string = "wait") =
@@ -94,6 +111,22 @@ template wait*(seconds: float, name: string = "wait") =
 
   tui:
     if state == Done:
-      bar(1.0)
+      bar(1.0, state)
     else:
-      bar(waitProgress[])
+      bar(waitProgress[], state)
+
+
+template compile*(nim: Nim, file: string, flags: string = "", name: string = "nim.compile") =
+  cmd("nim c " & flags & " " & file, name)
+
+
+template run*(nim: Nim, file: string, flags: string = "", name: string = "nim.run") =
+  cmd("nim r " & flags & " " & file, name)
+
+
+template doc*(nim: Nim, file: string, flags: string = "", name: string = "nim.doc") =
+  cmd("nim doc " & flags & " " & file, name)
+
+
+template command*(nim: Nim, arguments: string, name: string = "nim") =
+  cmd("nim " & arguments, name)

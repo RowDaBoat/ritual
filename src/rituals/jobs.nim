@@ -2,12 +2,6 @@ import workers
 import ritui
 
 
-type TaskState* = enum
-  Pending
-  Running
-  Done
-
-
 type TuiProc* = proc(vtui: var Vtui, name: string, state: TaskState, maxNameLen: int, tick: int) {.closure.}
 
 
@@ -46,8 +40,12 @@ proc wrapWithState*(job: Job): proc() =
   let work = job.procedure
   result = proc() =
     job.state = Running
-    work()
-    job.state = Done
+    try:
+      work()
+      job.state = Done
+    except Exception:
+      job.state = Failed
+      raise
 
 
 

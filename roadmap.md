@@ -1,7 +1,7 @@
 - [x] log output management
-- [ ] errors handling
+- [x] errors handling
+- [x] handle ctrl+c
+- [x] 'in progress' animated tui control
+- [x] shell task
 - [ ] nim compiler task
-- [ ] shell task
-- [ ] 'in progress' animated tui control
 - [ ] clean output option
-- [ ] handle ctrl+c

@@ -12,6 +12,13 @@ template cursorUp*(n: int): string   = "\e[" & $n & "A"
 template cursorDown*(n: int): string = "\e[" & $n & "B"
 
 
+type TaskState* = enum
+  Pending
+  Running
+  Done
+  Failed
+
+
 type Vtui* = object
   drawnLines*: int
   tick*: int
@@ -53,7 +60,8 @@ proc drawBar*(
   label: string,
   progress: float,
   maxNameLen: int,
-  tick: int
+  tick: int,
+  state: TaskState
 ) =
   let barWidth = 30
   let filled = clamp(int(progress * float(barWidth)), 0, barWidth)
@@ -82,13 +90,29 @@ proc drawBar*(
   bar.add "]"
 
   let begin = "\r" & eraseLine & fg(52) & "│ " & fg(88)
-  let percent = $formatFloat(percentage, ffDecimal, 2)
-  stdout.write begin & paddedName & " " & bar & " " & fg(88) & percent & "%" & reset & "\n"
+  let suffix = if state == Failed: " " & fg(196) & "ERROR"
+               else: " " & fg(88) & $formatFloat(percentage, ffDecimal, 2) & "%"
+  stdout.write begin & paddedName & " " & bar & suffix & reset & "\n"
   inc vtui.drawnLines
 
 
-proc drawLabel*(vtui: var Vtui, name: string, label: string, maxNameLen: int) =
+proc drawLabel*(vtui: var Vtui, name: string, label: string, maxNameLen: int, tick: int, state: TaskState) =
   let paddedName = align(name, maxNameLen)
   let begin = "\r" & eraseLine & fg(52) & "│ " & fg(88)
-  stdout.write begin & paddedName & " " & reset & label & reset & "\n"
+  let idx = (tick div 2) mod waveLen
+
+  var rune: string
+  var color: string
+  case state
+  of Done:
+    rune = fg(88) & "●" & reset
+    color = reset
+  of Failed:
+    rune = fg(88) & "○" & reset
+    color = fg(196)
+  else:
+    rune = fg(236) & emptyRunes[idx] & reset
+    color = reset
+
+  stdout.write begin & paddedName & " " & rune & " " & color & label & reset & "\n"
   inc vtui.drawnLines

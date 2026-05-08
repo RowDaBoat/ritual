@@ -62,7 +62,7 @@ requires "ritual"
     discard execProcess("nim c src/app.nim")
   tui:
     # Render the task's tui, receives 'state'.
-    # 'state' can be 'Pending', 'Running', 'Done'.
+    # 'state' can be 'Pending', 'Running', 'Done', 'Failed'.
     label("compile app")
   ```
 
@@ -91,3 +91,9 @@ task "setup":
 ```
 
 The `cmd` task automatically forwards both stdout and stderr to its log file.
+
+
+## Error handling
+When a task raises an exception, ritual immediately stops execution. The TUI closes, then the error message and the task's full log output (if any) are printed below.
+
+In the TUI, failed tasks are rendered in red: labels get red text and progress bars show "ERROR" instead of a percentage. The `Failed` state is available in `tui:` blocks for custom rendering:
