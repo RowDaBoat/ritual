@@ -12,6 +12,7 @@ type JobKind* = enum
 
 
 type Job* {.acyclic.} = ref object
+  scriptDir*: string
   case kind*: JobKind
   of Sequential, Parallel:
     children*: seq[Job]

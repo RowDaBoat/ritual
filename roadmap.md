@@ -4,7 +4,7 @@
 - [x] 'in progress' animated tui control
 - [x] shell task
 - [x] nim compiler task
-- [ ] ritual composition: execute a ritual from another, incorporating all its tasks
-- [ ] file imports: import rituals from other files, preserving each ritual's scriptDir as its source file directory
+- [x] ritual composition: execute a ritual from another, incorporating all its tasks
+- [x] file imports: import rituals from other files, preserving each ritual's scriptDir as its source file directory
 - [ ] cross-package resolution: resolve rituals across packages without including them in the final source
 - [ ] clean output option

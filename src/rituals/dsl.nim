@@ -24,11 +24,11 @@ proc sigint() {.noconv.} =
 var ritualExecuted = false
 
 
-proc executeRitual(name: string, rootJob: Job, scriptDir: string) =
+proc executeRitual(name: string, rootJob: Job) =
   ritualExecuted = true
   var pool = newWorkerPool()
 
-  setCurrentDir(scriptDir)
+  setCurrentDir(rootJob.scriptDir)
   ritualMonitor[] = startMonitor(name, rootJob)
   pool.execute(rootJob)
   pool.shutdown()
@@ -54,6 +54,7 @@ addExitProc(exitCheck)
 
 template ritual*(ritualName: string, body: untyped) =
   block:
+    let scriptDir = parentDir(instantiationInfo(-1, true).filename)
     var jobStack: seq[Job]
     var logCounter = newLogCounter()
 
@@ -63,8 +64,10 @@ template ritual*(ritualName: string, body: untyped) =
     template task(taskName: string, taskBody: untyped) {.used.} =
       let taskLogPath = logCounter.nextLogPath(taskName)
       let job = run(taskName, nil)
+      job.scriptDir = scriptDir
 
       job.procedure = proc() =
+        setCurrentDir(job.scriptDir)
         let taskLog {.inject, used.} = newTaskLog(taskLogPath)
 
         template log(message: string) {.used.} =
@@ -92,6 +95,8 @@ template ritual*(ritualName: string, body: untyped) =
         maxNameLen: int,
         tick {.inject.}: int
       ) {.closure.} =
+        setCurrentDir(lastJob.scriptDir)
+
         template bar(value: float, barState {.inject.}: TaskState = state) {.used.} =
           vtui.drawBar(name, "", value, maxNameLen, tick, barState)
 
@@ -123,8 +128,8 @@ template ritual*(ritualName: string, body: untyped) =
     body
 
     let rootJob = jobStack.pop()
+    rootJob.scriptDir = scriptDir
     rituals[ritualName] = rootJob
 
     if paramCount() >= 1 and paramStr(1) == ritualName:
-      let scriptDir = parentDir(instantiationInfo(-1, true).filename)
-      executeRitual(ritualName, rootJob, scriptDir)
+      executeRitual(ritualName, rootJob)
