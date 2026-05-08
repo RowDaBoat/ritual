@@ -49,7 +49,7 @@ proc wrapWithState*(job: Job): proc() =
 
 
 
-proc execute*(pool: WorkerPool, job: Job, predecessor: Barrier = nil): Barrier =
+proc execute*(pool: WorkerPool, job: Job, predecessor: Barrier = nil): Barrier {.discardable.} =
   case job.kind
   of Sequential:
     var prev = predecessor

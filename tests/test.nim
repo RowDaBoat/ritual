@@ -1,6 +1,17 @@
 import std/os
 import ../src/rituals
 
+
+ritual "waits":
+  parallel:
+    wait(2)
+    wait(1)
+
+  wait(0.5)
+  wait(0.5)
+  wait(0.5)
+
+
 ritual "basic":
   parallel:
     download(
@@ -71,3 +82,9 @@ ritual "clean":
   remove("test")
   remove("linux-*")
   remove("debian-*")
+
+
+ritual "compose":
+  wait(0.5, name = "before")
+  recite "waits"
+  wait(0.5, name = "after")

@@ -118,7 +118,7 @@ proc loop(args: MonitorArgs) {.thread.} =
     sleep(16)
 
 
-proc newMonitor*(name: string, rootJob: Job): Monitor =
+proc startMonitor*(name: string, rootJob: Job): Monitor =
   result.shutdownChannel = cast[ptr Channel[Shutdown]](allocShared0(sizeof(Channel[Shutdown])))
   result.shutdownChannel[].open()
   createThread(result.thread, loop, MonitorArgs(

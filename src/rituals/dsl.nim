@@ -1,6 +1,8 @@
 import std/os
 import std/exitprocs
 import std/strformat
+import std/strutils
+import std/tables
 import ritui
 import jobs
 import workers
@@ -9,9 +11,32 @@ import output
 export ritui, jobs, output
 
 
+var rituals: Table[string, Job]
+var ritualMonitor: ptr Monitor = cast[ptr Monitor](allocShared0(sizeof(Monitor)))
+
+
+proc sigint() {.noconv.} =
+  stdout.write reset & showCursor & "\n"
+  stdout.flushFile()
+  quit(0)
+
+
 var ritualExecuted = false
 
-addExitProc(proc() {.noconv.} =
+
+proc executeRitual(name: string, rootJob: Job, scriptDir: string) =
+  ritualExecuted = true
+  var pool = newWorkerPool()
+
+  setCurrentDir(scriptDir)
+  ritualMonitor[] = startMonitor(name, rootJob)
+  pool.execute(rootJob)
+  pool.shutdown()
+  ritualMonitor[].stop()
+  deallocShared(ritualMonitor)
+
+
+proc exitCheck() {.noconv.} =
   if ritualExecuted:
     return
 
@@ -21,24 +46,21 @@ addExitProc(proc() {.noconv.} =
     echo &"Unknown ritual: '{paramStr(1)}'"
 
   quit(1)
-)
+
+
+setControlCHook(sigint)
+addExitProc(exitCheck)
 
 
 template ritual*(ritualName: string, body: untyped) =
-  if paramCount() >= 1 and paramStr(1) == ritualName:
-    ritualExecuted = true
-    let scriptDir = parentDir(instantiationInfo(-1, true).filename)
-    setCurrentDir(scriptDir)
-
-    var pool = newWorkerPool()
+  block:
     var jobStack: seq[Job]
     var logCounter = newLogCounter()
-    var ritualMonitor: ptr Monitor = cast[ptr Monitor](allocShared0(sizeof(Monitor)))
 
     template logDir(dir: string) {.used.} =
       logCounter.outputDir = dir
 
-    template task(taskName: string, taskBody: untyped) =
+    template task(taskName: string, taskBody: untyped) {.used.} =
       let taskLogPath = logCounter.nextLogPath(taskName)
       let job = run(taskName, nil)
 
@@ -60,7 +82,7 @@ template ritual*(ritualName: string, body: untyped) =
 
       jobStack[^1].children.add job
 
-    template tui(tuiBody: untyped) =
+    template tui(tuiBody: untyped) {.used.} =
       let lastJob = jobStack[^1].children[^1]
 
       lastJob.renderer = proc(
@@ -93,20 +115,16 @@ template ritual*(ritualName: string, body: untyped) =
       let frame = jobStack.pop()
       jobStack[^1].children.add frame
 
+    template recite(targetName: string) {.used.} =
+      jobStack[^1].children.add rituals[targetName]
+
     jobStack.add jobs.sequential()
 
     body
 
     let rootJob = jobStack.pop()
-    ritualMonitor[] = newMonitor(ritualName, rootJob)
+    rituals[ritualName] = rootJob
 
-    setControlCHook(proc() {.noconv.} =
-      stdout.write reset & showCursor & "\n"
-      stdout.flushFile()
-      quit(0)
-    )
-
-    discard pool.execute(rootJob)
-    pool.shutdown()
-    ritualMonitor[].stop()
-    deallocShared(ritualMonitor)
+    if paramCount() >= 1 and paramStr(1) == ritualName:
+      let scriptDir = parentDir(instantiationInfo(-1, true).filename)
+      executeRitual(ritualName, rootJob, scriptDir)
