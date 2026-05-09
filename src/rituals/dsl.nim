@@ -89,9 +89,11 @@ template ritual*(ritualName: string, body: untyped) =
         jobStack[^1].children.add job
 
     template tui(tuiBody: untyped) {.used.} =
-      let targetJob = case pendingChild
-        of nil: jobStack[^1].children[^1]
-        else:   pendingChild
+      let targetJob =
+        if pendingChild != nil:
+           pendingChild
+        else:
+          jobStack[^1].children[^1]
 
       targetJob.renderer = proc(
         vtui: var Vtui,

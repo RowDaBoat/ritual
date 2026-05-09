@@ -138,8 +138,7 @@ type Color = enum
 ritual "choose":
   var picked: Color
   choose(picked, Green, "Pick a color")
-
-  task "show":
-    taskLog.write("You picked: " & $picked & "\n")
-  tui:
-    label($picked, state)
+  case picked:
+  of Red:   notice("Picked Red")
+  of Green: notice("Picked Green")
+  of Blue:  notice("Picked Blue")
