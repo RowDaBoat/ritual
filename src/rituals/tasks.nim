@@ -187,7 +187,7 @@ template choose*[T: enum](store: var T, defaultValue: T, choiceLabel: string, na
   tui:
     if state == Done:
       let selectedName = $choice.options[choice.selected[]]
-      label(choiceLabel & ": " & selectedName, state)
+      label(choiceLabel & ": " & selectedName, Chosen)
     else:
       label(choiceLabel, state)
 

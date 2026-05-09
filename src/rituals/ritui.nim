@@ -16,6 +16,7 @@ type TaskState* = enum
   Pending
   Running
   Done
+  Chosen
   Failed
 
 
@@ -114,6 +115,9 @@ proc drawState*(tick: int, state: TaskState): string =
   of Done:
     rune = fg(88) & "●" & reset
     color = reset
+  of Chosen:
+    rune = fg(160) & "●" & reset
+    color = reset
   of Failed:
     rune = fg(88) & "○" & reset
     color = fg(196)
@@ -134,6 +138,9 @@ proc drawLabel*(vtui: var Vtui, name: string, label: string, maxNameLen: int, ti
   case state
   of Done:
     rune = fg(88) & "●" & reset
+    color = reset
+  of Chosen:
+    rune = fg(196) & "●" & reset
     color = reset
   of Failed:
     rune = fg(88) & "○" & reset
