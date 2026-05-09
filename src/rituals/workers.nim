@@ -41,6 +41,13 @@ proc newBarrier*(initialCount: int = 0): Barrier =
   initCond(result.cond)
 
 
+proc waitSync*(barrier: Barrier) =
+  acquire(barrier.lock)
+  while barrier.count > 0:
+    wait(barrier.cond, barrier.lock)
+  release(barrier.lock)
+
+
 proc hold*(barrier: Barrier): Task =
   Task(kind: Hold, barrier: barrier)
 

@@ -1,7 +1,6 @@
 import std/os
 import std/exitprocs
 import std/strformat
-import std/strutils
 import std/tables
 import ritui
 import jobs
@@ -13,27 +12,13 @@ export ritui, jobs, output
 
 var rituals: Table[string, Job]
 var ritualMonitor: ptr Monitor = cast[ptr Monitor](allocShared0(sizeof(Monitor)))
+var ritualExecuted = false
 
 
 proc sigint() {.noconv.} =
   stdout.write reset & showCursor & "\n"
   stdout.flushFile()
   quit(0)
-
-
-var ritualExecuted = false
-
-
-proc executeRitual(name: string, rootJob: Job) =
-  ritualExecuted = true
-  var pool = newWorkerPool()
-
-  setCurrentDir(rootJob.scriptDir)
-  ritualMonitor[] = startMonitor(name, rootJob)
-  pool.execute(rootJob)
-  pool.shutdown()
-  ritualMonitor[].stop()
-  deallocShared(ritualMonitor)
 
 
 proc exitCheck() {.noconv.} =
@@ -57,11 +42,26 @@ template ritual*(ritualName: string, body: untyped) =
     let scriptDir = parentDir(instantiationInfo(-1, true).filename)
     var jobStack: seq[Job]
     var logCounter = newLogCounter()
+    var pool: WorkerPool = nil
+    var lastBarrier: Barrier = nil
+    var pendingChild: Job = nil
+    let shouldExecute = paramCount() >= 1 and paramStr(1) == ritualName
 
-    template logDir(dir: string) {.used.} =
-      logCounter.outputDir = dir
+    proc flushPending(pending: var Job) =
+      if pending == nil:
+        return
+
+      let child = pending
+      pending = nil
+
+      jobStack[^1].children.add child
+
+      if shouldExecute and jobStack.len == 1:
+        lastBarrier = pool.execute(child, lastBarrier)
+        lastBarrier.waitSync()
 
     template task(taskName: string, taskBody: untyped) {.used.} =
+      flushPending(pendingChild)
       let taskLogPath = logCounter.nextLogPath(taskName)
       let job = run(taskName, nil)
       job.scriptDir = scriptDir
@@ -83,19 +83,24 @@ template ritual*(ritualName: string, body: untyped) =
           quit(1)
         taskLog.close()
 
-      jobStack[^1].children.add job
+      if jobStack.len == 1:
+        pendingChild = job
+      else:
+        jobStack[^1].children.add job
 
     template tui(tuiBody: untyped) {.used.} =
-      let lastJob = jobStack[^1].children[^1]
+      let targetJob = case pendingChild
+        of nil: jobStack[^1].children[^1]
+        else:   pendingChild
 
-      lastJob.renderer = proc(
+      targetJob.renderer = proc(
         vtui: var Vtui,
         name: string,
         state {.inject.}: TaskState,
         maxNameLen: int,
         tick {.inject.}: int
       ) {.closure.} =
-        setCurrentDir(lastJob.scriptDir)
+        setCurrentDir(targetJob.scriptDir)
 
         template bar(value: float, barState {.inject.}: TaskState = state) {.used.} =
           vtui.drawBar(name, "", value, maxNameLen, tick, barState)
@@ -112,27 +117,52 @@ template ritual*(ritualName: string, body: untyped) =
         tuiBody
 
     template parallel(parallelBody: untyped) {.used.} =
+      flushPending(pendingChild)
       jobStack.add jobs.parallel()
       parallelBody
       let frame = jobStack.pop()
-      jobStack[^1].children.add frame
+
+      if jobStack.len == 1:
+        pendingChild = frame
+      else:
+        jobStack[^1].children.add frame
 
     template sequential(seqBody: untyped) {.used.} =
+      flushPending(pendingChild)
       jobStack.add jobs.sequential()
       seqBody
       let frame = jobStack.pop()
-      jobStack[^1].children.add frame
+
+      if jobStack.len == 1:
+        pendingChild = frame
+      else:
+        jobStack[^1].children.add frame
 
     template recite(targetName: string) {.used.} =
-      jobStack[^1].children.add rituals[targetName]
+      flushPending(pendingChild)
+
+      if jobStack.len == 1:
+        pendingChild = rituals[targetName]
+      else:
+        jobStack[^1].children.add rituals[targetName]
 
     jobStack.add jobs.sequential()
 
-    body
-
-    let rootJob = jobStack.pop()
+    let rootJob = jobStack[0]
     rootJob.scriptDir = scriptDir
     rituals[ritualName] = rootJob
 
-    if paramCount() >= 1 and paramStr(1) == ritualName:
-      executeRitual(ritualName, rootJob)
+    if shouldExecute:
+      ritualExecuted = true
+      pool = newWorkerPool()
+      setCurrentDir(scriptDir)
+      ritualMonitor[] = startMonitor(ritualName, rootJob)
+
+    body
+
+    flushPending(pendingChild)
+
+    if shouldExecute:
+      pool.shutdown()
+      ritualMonitor[].stop()
+      deallocShared(ritualMonitor)

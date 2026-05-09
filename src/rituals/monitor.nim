@@ -95,10 +95,10 @@ proc loop(args: MonitorArgs) {.thread.} =
   var vtui: Vtui
   vtui.drawHeader(args.name)
 
-  let maxLen = maxNameLen(args.rootJob)
   var renderOrder: seq[Job]
 
   while true:
+    let maxLen = maxNameLen(args.rootJob)
     {.cast(gcsafe).}:
       renderFrame(vtui, args.rootJob, renderOrder, maxLen)
 

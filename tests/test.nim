@@ -42,6 +42,28 @@ ritual "basic":
   )
 
 
+ritual "allparallel":
+  parallel:
+    parallel:
+      parallel:
+        wait(0.5, name = "task 01")
+        wait(1, name = "task 02")
+        wait(3, name = "task 03")
+      parallel:
+        wait(3, name = "task 04")
+        wait(3, name = "task 05")
+        wait(3, name = "task 06")
+    parallel:
+      parallel:
+        wait(0.5, name = "task 07")
+        wait(0.5, name = "task 08")
+        wait(0.5, name = "task 09")
+      parallel:
+        wait(0.5, name = "task 10")
+        wait(0.5, name = "task 11")
+        wait(0.5, name = "task 12")
+
+
 ritual "simplefail":
   cmd("echo 'This should work.'")
   wait(1.0, name = "working")
