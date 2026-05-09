@@ -57,8 +57,13 @@ template ritual*(ritualName: string, body: untyped) =
       jobStack[^1].children.add child
 
       if shouldExecute and jobStack.len == 1:
+        let doneBarrier = newBarrier(1)
         lastBarrier = pool.execute(child, lastBarrier)
-        lastBarrier.waitSync()
+        pool.send doneBarrier.release
+        doneBarrier.waitSync()
+
+    template sync() {.used.} =
+      flushPending(pendingChild)
 
     template task(taskName: string, taskBody: untyped) {.used.} =
       flushPending(pendingChild)

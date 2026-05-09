@@ -194,3 +194,5 @@ template choose*[T: enum](store: var T, defaultValue: T, choiceLabel: string, na
       for index, optionValue in choice.options:
         let isSelected = index == choice.selected[]
         option("", $optionValue, isSelected, state)
+
+  sync()
