@@ -1,24 +1,28 @@
 import std/os
 import dsl, tasks
 
+
+type InstallTarget = enum
+  Nimby
+  Nimble
+  Skip
+
+
 let ritualBin = "ritual"
 let ritualPath = "../../bin/" & ritualBin
-let nimbyBinPath = "~/.nimby/bin"
+let nimbyBinPath = "~/.nimby/nim/bin/"
 let nimbleBinPath = "~/.nimble/bin"
 
 
 ritual "install-ritual":
   nim.compile("installritual.nim", "-o:" & ritualPath)
 
-  if dirExists(nimbyBinPath):
-    notice("Installing `ritual` in .nimby.")
-    copy(ritualPath, nimbyBinPath/"ritual")
-  elif dirExists(nimbleBinPath):
-    notice("Installing `ritual` in .nimble.")
-    copy(ritualPath, nimbyBinPath/"ritual")
-  else:
-    notice("Couldn't find .nimby nor .nimble installations.")
-    notice("Skipping `ritual` installation.")
+  var target: InstallTarget
+  choose(target, Nimby, "Install location")
+  case target
+  of Nimby:  copy(ritualPath, nimbyBinPath / "ritual")
+  of Nimble: copy(ritualPath, nimbleBinPath / "ritual")
+  of Skip:   notice("Skipped installation")
 
 when isMainModule:
   echo "Summoning!"
