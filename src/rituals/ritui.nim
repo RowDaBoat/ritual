@@ -21,6 +21,7 @@ type TaskState* = enum
 
 type Vtui* = object
   drawnLines*: int
+  previousLines*: int
   tick*: int
 
 
@@ -44,13 +45,21 @@ proc drawFooter*(vtui: var Vtui) =
 
 
 proc beginFrame*(vtui: var Vtui) =
-  if vtui.drawnLines > 0:
-    stdout.write cursorUp(vtui.drawnLines)
+  if vtui.previousLines > 0:
+    stdout.write cursorUp(vtui.previousLines)
+
+  for i in 0 ..< vtui.previousLines:
+    stdout.write eraseLine & "\n"
+
+  if vtui.previousLines > 0:
+    stdout.write cursorUp(vtui.previousLines)
+
   stdout.write "\r"
   vtui.drawnLines = 0
 
 
-proc endFrame*(vtui: Vtui) =
+proc endFrame*(vtui: var Vtui) =
+  vtui.previousLines = vtui.drawnLines
   stdout.flushFile()
 
 
@@ -96,13 +105,11 @@ proc drawBar*(
   inc vtui.drawnLines
 
 
-proc drawLabel*(vtui: var Vtui, name: string, label: string, maxNameLen: int, tick: int, state: TaskState) =
-  let paddedName = align(name, maxNameLen)
-  let begin = "\r" & eraseLine & fg(52) & "│ " & fg(88)
-  let idx = (tick div 2) mod waveLen
-
+proc drawState*(tick: int, state: TaskState): string =
   var rune: string
   var color: string
+  let idx = (tick div 2) mod waveLen
+
   case state
   of Done:
     rune = fg(88) & "●" & reset
@@ -113,6 +120,48 @@ proc drawLabel*(vtui: var Vtui, name: string, label: string, maxNameLen: int, ti
   else:
     rune = fg(236) & emptyRunes[idx] & reset
     color = reset
+
+  result = rune & " " & color
+
+
+proc drawLabel*(vtui: var Vtui, name: string, label: string, maxNameLen: int, tick: int, state: TaskState) =
+  let paddedName = align(name, maxNameLen)
+  let begin = "\r" & eraseLine & fg(52) & "│ " & fg(88)
+  let idx = (tick div 2) mod waveLen
+  var rune: string
+  var color: string
+
+  case state
+  of Done:
+    rune = fg(88) & "●" & reset
+    color = reset
+  of Failed:
+    rune = fg(88) & "○" & reset
+    color = fg(196)
+  else:
+    rune = fg(236) & emptyRunes[idx] & reset
+    color = reset
+
+  stdout.write begin & paddedName & " " & rune & " " & color & label & reset & "\n"
+  inc vtui.drawnLines
+
+
+proc drawOption*(vtui: var Vtui, name: string, label: string, maxNameLen: int, selected: bool, tick: int, state: TaskState) =
+  let paddedName = align(name, maxNameLen)
+  let begin = "\r" & eraseLine & fg(52) & "│ " & fg(88)
+  var rune: string
+  var color: string
+
+  case state
+  of Done:
+    rune = if selected: fg(160) & "●" & reset else: fg(52) & "○" & reset
+    color = if selected: fg(231) else: fg(240)
+  of Failed:
+    rune = fg(88) & "○" & reset
+    color = fg(196)
+  else:
+    rune = if selected: fg(196) & "●" & reset else: fg(236) & "◌" & reset
+    color = if selected: fg(231) else: fg(240)
 
   stdout.write begin & paddedName & " " & rune & " " & color & label & reset & "\n"
   inc vtui.drawnLines

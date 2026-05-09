@@ -105,3 +105,19 @@ ritual "import":
   tui:
     expectCurrentDir("" / "tests")
     label(getCurrentDir(), state)
+
+
+type Color = enum
+  Red
+  Green
+  Blue
+
+
+ritual "choose":
+  var picked: Color
+  choose(picked, Green, "Pick a color")
+
+  task "show":
+    taskLog.write("You picked: " & $picked & "\n")
+  tui:
+    label($picked, state)

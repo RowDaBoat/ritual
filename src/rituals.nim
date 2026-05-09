@@ -1,2 +1,2 @@
-import rituals/[dsl, tasks]
-export dsl, tasks
+import rituals/[dsl, tasks, installritual]
+export dsl, tasks, installritual

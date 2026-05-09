@@ -1,4 +1,4 @@
-import std/[os, osproc, streams, httpclient, strutils]
+import std/[os, osproc, streams, httpclient, strutils, terminal]
 import output
 
 
@@ -116,6 +116,13 @@ template wait*(seconds: float, name: string = "wait") =
       bar(waitProgress[], state)
 
 
+template notice*(message: string, name: string = "notice") =
+  task name:
+    discard
+  tui:
+    label(message, state)
+
+
 template compile*(nim: Nim, file: string, flags: string = "", name: string = "nim.compile") =
   cmd("nim c " & flags & " " & file, name)
 
@@ -130,3 +137,60 @@ template doc*(nim: Nim, file: string, flags: string = "", name: string = "nim.do
 
 template command*(nim: Nim, arguments: string, name: string = "nim") =
   cmd("nim " & arguments, name)
+
+
+type ChoiceState*[T: enum] = object
+  selected*: ptr int
+  confirmed*: ptr bool
+  options*: seq[T]
+
+
+proc newChoiceState*[T: enum](defaultValue: T): ChoiceState[T] =
+  result.selected = cast[ptr int](allocShared0(sizeof(int)))
+  result.confirmed = cast[ptr bool](allocShared0(sizeof(bool)))
+
+  for value in T:
+    result.options.add value
+
+  result.selected[] = ord(defaultValue) - ord(T.low)
+
+
+proc readChoice[T: enum](choice: ChoiceState[T]): T =
+  let optionCount = choice.options.len
+
+  while true:
+    case getch()
+    of '\e':
+      if getch() == '[':
+        case getch()
+        of 'A':
+          choice.selected[] = (choice.selected[] - 1 + optionCount) mod optionCount
+        of 'B':
+          choice.selected[] = (choice.selected[] + 1) mod optionCount
+        else:
+          discard
+    of '\r', '\n':
+      break
+    else:
+      discard
+
+  choice.options[choice.selected[]]
+
+
+template choose*[T: enum](store: var T, defaultValue: T, choiceLabel: string, name: string = "choose") =
+  let choice = newChoiceState[T](defaultValue)
+
+  task name:
+    store = readChoice(choice)
+    choice.confirmed[] = true
+
+  tui:
+    if state == Done:
+      let selectedName = $choice.options[choice.selected[]]
+      label(choiceLabel & ": " & selectedName, state)
+    else:
+      label(choiceLabel, state)
+
+      for index, optionValue in choice.options:
+        let isSelected = index == choice.selected[]
+        option("", $optionValue, isSelected, state)

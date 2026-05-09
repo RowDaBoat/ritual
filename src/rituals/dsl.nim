@@ -106,6 +106,9 @@ template ritual*(ritualName: string, body: untyped) =
         template label(text: string, labelState {.inject.}: TaskState = state) {.used.} =
           vtui.drawLabel(name, text, maxNameLen, tick, labelState)
 
+        template option(rowName: string, text: string, selected: bool, optionState {.inject.}: TaskState = state) {.used.} =
+          vtui.drawOption(rowName, text, maxNameLen, selected, tick, optionState)
+
         tuiBody
 
     template parallel(parallelBody: untyped) {.used.} =
