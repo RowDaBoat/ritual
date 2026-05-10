@@ -1,6 +1,7 @@
 import std/os
 import std/exitprocs
 import std/strformat
+import std/terminal
 import std/tables
 import ritui
 import jobs
@@ -26,7 +27,7 @@ proc exitCheck() {.noconv.} =
     return
 
   if paramCount() < 1:
-    echo "No ritual to invoke."
+    styledEcho fgRed, "Error: ", resetStyle, "No ritual to invoke."
   else:
     echo &"Unknown ritual: '{paramStr(1)}'"
 
@@ -40,6 +41,7 @@ addExitProc(exitCheck)
 template ritual*(ritualName: string, body: untyped) =
   block:
     let scriptDir = parentDir(instantiationInfo(-1, true).filename)
+    let callDir {.inject, used.} = getCurrentDir()
     var jobStack: seq[Job]
     var logCounter = newLogCounter()
     var pool: WorkerPool = nil
@@ -81,12 +83,12 @@ template ritual*(ritualName: string, body: untyped) =
         try:
           taskBody
         except Exception as error:
-          taskLog.close()
           job.state = Failed
           {.cast(gcsafe).}:
             ritualMonitor[].fail(taskName, error.msg, taskLogPath)
           quit(1)
-        taskLog.close()
+        finally:
+          taskLog.close()
 
       if jobStack.len == 1:
         pendingChild = job

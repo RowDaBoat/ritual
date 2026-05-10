@@ -14,7 +14,7 @@ let nimbleBinPath = "~/.nimble/bin".expandTilde
 
 
 ritual "install-ritual":
-  nim.compile("ritualcmd.nim", "-o:" & ritualBin)
+  nim.compile("../ritualcmd.nim", "-o:" & ritualBin)
 
   var target: InstallTarget
   choose(target, Nimby, "Install location")

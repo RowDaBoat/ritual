@@ -1,4 +1,4 @@
-import std/[os, osproc, strutils, sequtils]
+import std/[os, osproc, strutils, sequtils, terminal]
 
 
 proc collectConfigs(): seq[string] =
@@ -21,6 +21,9 @@ proc collectConfigs(): seq[string] =
 
 
 proc readConfigs(paths: seq[string]): string =
+  if paths.len == 0:
+    return ""
+
   paths
     .mapIt(readFile(it).splitLines())
     .foldl(a & b)
@@ -53,10 +56,10 @@ when isMainModule:
   let (dir, args) = parseArgs()
   let allArgs = (configArgs & " " & args).strip()
   let ritualPath = dir / "ritual.nim"
-  let command = "nim r " & ritualPath & " " & allArgs
-  let (output, exitCode) = execCmdEx(command)
 
-  if exitCode != 0:
-    echo output
+  if not fileExists(ritualPath):
+    styledEcho fgRed, "Error: ", resetStyle, "No ritual.nim found in " & dir.absolutePath & "."
+    quit(1)
 
-  quit(exitCode)
+  let command = "nim r --verbosity:0 " & ritualPath & " " & allArgs
+  quit(execCmd(command))
