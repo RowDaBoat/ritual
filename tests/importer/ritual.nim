@@ -17,7 +17,7 @@ ritual "reciteimport":
     expectCurrentDir("" / "tests"/ "importer")
     label(getCurrentDir(), state)
 
-  recite "imported"
+  recite "other.imported"
 
   task "after recite dir":
     expectCurrentDir("" / "tests" / "importer")

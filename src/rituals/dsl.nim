@@ -3,6 +3,8 @@ import std/exitprocs
 import std/strformat
 import std/terminal
 import std/tables
+import std/locks
+import std/compilesettings
 import ritui
 import jobs
 import workers
@@ -14,6 +16,9 @@ export ritui, jobs, output
 var rituals: Table[string, Job]
 var ritualMonitor: ptr Monitor = cast[ptr Monitor](allocShared0(sizeof(Monitor)))
 var ritualExecuted = false
+var cwdLock*: Lock
+
+cwdLock.initLock()
 
 
 proc sigint() {.noconv.} =
@@ -41,13 +46,16 @@ addExitProc(exitCheck)
 template ritual*(ritualName: string, body: untyped) =
   block:
     let scriptDir = parentDir(instantiationInfo(-1, true).filename)
+    let projectDir = parentDir(querySetting(projectFull))
+    let packageName = lastPathPart(scriptDir)
+    let isPackageRitual = scriptDir == projectDir
     let callDir {.inject, used.} = getCurrentDir()
     var jobStack: seq[Job]
     var logCounter = newLogCounter()
     var pool: WorkerPool = nil
     var lastBarrier: Barrier = nil
     var pendingChild: Job = nil
-    let shouldExecute = paramCount() >= 1 and paramStr(1) == ritualName
+    var shouldExecute = false
 
     proc flushPending(pending: var Job) =
       if pending == nil:
@@ -74,7 +82,10 @@ template ritual*(ritualName: string, body: untyped) =
       job.scriptDir = scriptDir
 
       job.procedure = proc() =
-        setCurrentDir(job.scriptDir)
+        {.cast(gcsafe).}:
+          cwdLock.acquire()
+          setCurrentDir(job.scriptDir)
+          cwdLock.release()
         let taskLog {.inject, used.} = newTaskLog(taskLogPath)
 
         template log(message: string) {.used.} =
@@ -109,6 +120,8 @@ template ritual*(ritualName: string, body: untyped) =
         maxNameLen: int,
         tick {.inject.}: int
       ) {.closure.} =
+        {.cast(gcsafe).}:
+          cwdLock.acquire()
         setCurrentDir(targetJob.scriptDir)
 
         template bar(value: float, barState {.inject.}: TaskState = state) {.used.} =
@@ -124,6 +137,8 @@ template ritual*(ritualName: string, body: untyped) =
           vtui.drawOption(rowName, text, maxNameLen, selected, tick, optionState)
 
         tuiBody
+        {.cast(gcsafe).}:
+          cwdLock.release()
 
     template parallel(parallelBody: untyped) {.used.} =
       flushPending(pendingChild)
@@ -166,13 +181,18 @@ template ritual*(ritualName: string, body: untyped) =
 
     let rootJob = jobStack[0]
     rootJob.scriptDir = scriptDir
-    rituals[ritualName] = rootJob
 
+    let registerName = case isPackageRitual
+    of true:  ritualName
+    of false: packageName & "." & ritualName
+    rituals[registerName] = rootJob
+
+    shouldExecute = paramCount() >= 1 and paramStr(1) == registerName
     if shouldExecute:
       ritualExecuted = true
       pool = newWorkerPool()
       setCurrentDir(scriptDir)
-      ritualMonitor[] = startMonitor(ritualName, rootJob)
+      ritualMonitor[] = startMonitor(registerName, rootJob)
 
     body
 
