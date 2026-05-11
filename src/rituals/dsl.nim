@@ -1,15 +1,5 @@
-import std/os
-import std/exitprocs
-import std/strformat
-import std/terminal
-import std/tables
-import std/locks
-import std/compilesettings
-import ritui
-import jobs
-import workers
-import monitor
-import output
+import std/[os, exitprocs, strformat, terminal, tables, locks, compilesettings]
+import ritui, jobs, output, workers, monitor
 export ritui, jobs, output
 
 

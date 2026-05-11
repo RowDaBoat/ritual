@@ -1,5 +1,5 @@
 import std/os
-import ../dsl, ../tasks
+import ../[dsl, tasks]
 
 
 type InstallTarget = enum

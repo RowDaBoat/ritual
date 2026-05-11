@@ -1,5 +1,4 @@
-import workers
-import ritui
+import workers, ritui
 
 
 type TuiProc* = proc(vtui: var Vtui, name: string, state: TaskState, maxNameLen: int, tick: int) {.closure.}

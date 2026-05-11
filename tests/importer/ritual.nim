@@ -1,5 +1,4 @@
 import std/[os, strutils]
-{.used.}
 import ../../src/rituals
 
 
@@ -14,7 +13,7 @@ ritual "reciteimport":
   task "local dir":
     expectCurrentDir("" / "tests" / "importer")
   tui:
-    expectCurrentDir("" / "tests"/ "importer")
+    expectCurrentDir("" / "tests" / "importer")
     label(getCurrentDir(), state)
 
   recite "other.imported"

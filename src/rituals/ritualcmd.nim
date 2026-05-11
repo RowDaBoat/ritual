@@ -1,4 +1,4 @@
-import std/[os, osproc, strutils, sequtils, terminal]
+import std/[os, osproc, strutils]
 
 
 proc parseArgs(): tuple[dir: string, args: string] =
@@ -21,11 +21,7 @@ proc parseArgs(): tuple[dir: string, args: string] =
 
 when isMainModule:
   let (dir, args) = parseArgs()
+  let flags = "--verbosity:0"
   let ritualPath = dir / "ritual.nim"
-
-  if not fileExists(ritualPath):
-    styledEcho fgRed, "Error: ", resetStyle, "No ritual.nim found in " & dir.absolutePath & "."
-    quit(1)
-
-  let command = "nim r --verbosity:0 " & ritualPath & " " & args
+  let command = @["nim r", flags, ritualPath, args].join(" ")
   quit(execCmd(command))

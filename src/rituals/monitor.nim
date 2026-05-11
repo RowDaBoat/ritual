@@ -1,6 +1,5 @@
 import std/os
-import ritui
-import jobs
+import ritui, jobs
 
 
 type ShutdownKind* = enum
