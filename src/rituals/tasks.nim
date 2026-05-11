@@ -18,7 +18,11 @@ template cmd*(command: string, name: string = "cmd") =
       let line = stream.readLine()
       taskLog.write(line & "\n")
 
+    let exitCode = process.waitForExit()
     process.close()
+
+    if exitCode != 0:
+      raise newException(OSError, "command failed with exit code " & $exitCode)
 
   tui:
     if state == Done:
