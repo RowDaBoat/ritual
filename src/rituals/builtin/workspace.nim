@@ -1,4 +1,4 @@
-import std/[os, sequtils]
+import std/[os, sequtils, strutils]
 import ../dsl
 
 
@@ -10,17 +10,38 @@ proc findRitualPaths(root: string): seq[string] =
     .mapIt(it.path)
 
 
-proc buildConfig(paths: seq[string]): string =
+proc buildImports(paths: seq[string]): string =
   for path in paths:
-    result.add "--path:" & path & "\n"
+    result.add "--import:\"" & path / "ritual.nim" & "\"\n"
+
+
+proc isRitualImport(line: string): bool =
+  line.startsWith("--import:") and line.endsWith("ritual.nim")
+
+
+proc mergeConfig(configPath: string, imports: string): string =
+  if not fileExists(configPath):
+    return imports
+
+  let existing = readFile(configPath)
+  let preserved = existing
+    .splitLines()
+    .filterIt(not isRitualImport(it))
+    .filterIt(it.strip().len > 0)
+    .join("\n")
+
+  if preserved.len > 0:
+    return preserved & "\n" & imports
+  return imports
 
 
 ritual "workspace":
   let ritualPaths = findRitualPaths(callDir)
-  let configContent = buildConfig(ritualPaths)
-  let configPath = callDir / "ritual.cfg"
+  let imports = buildImports(ritualPaths)
+  let configPath = callDir / "nim.cfg"
+  let configContent = mergeConfig(configPath, imports)
 
-  task "write ritual.cfg":
+  task "write nim.cfg":
     writeFile(configPath, configContent)
 
   tui:

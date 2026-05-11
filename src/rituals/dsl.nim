@@ -150,6 +150,13 @@ template ritual*(ritualName: string, body: untyped) =
     template recite(targetName: string) {.used.} =
       flushPending(pendingChild)
 
+      if not rituals.hasKey(targetName):
+        if shouldExecute:
+          let errorMessage = "can't recite unknown ritual: '" & targetName & "'"
+          ritualMonitor[].fail(ritualName, errorMessage, "")
+          pool.shutdown()
+          quit(1)
+
       if jobStack.len == 1:
         pendingChild = rituals[targetName]
       else:
