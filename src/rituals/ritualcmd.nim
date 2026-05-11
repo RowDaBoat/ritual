@@ -19,9 +19,37 @@ proc parseArgs(): tuple[dir: string, args: string] =
   result.args = forwarded.join(" ")
 
 
+proc collectConfigs(dir: string): seq[string] =
+  var current = dir.absolutePath()
+
+  while true:
+    let configPath = current / "ritual.cfg"
+    if fileExists(configPath):
+      result.add configPath
+
+    let parent = parentDir(current)
+    if parent == current:
+      break
+    current = parent
+
+
+proc readConfigFlags(configPaths: seq[string]): string =
+  var flags: seq[string]
+
+  for path in configPaths:
+    for line in readFile(path).splitLines():
+      let trimmed = line.strip()
+      if trimmed.len > 0 and not trimmed.startsWith("#"):
+        flags.add trimmed
+
+  result = flags.join(" ")
+
+
 when isMainModule:
   let (dir, args) = parseArgs()
-  let flags = "--verbosity:0"
+  let configs = collectConfigs(dir)
+  let configFlags = readConfigFlags(configs)
+  let flags = "--verbosity:0 --warnings:off --hints:off"
   let ritualPath = dir / "ritual.nim"
-  let command = @["nim r", flags, ritualPath, args].join(" ")
+  let command = @["nim r", flags, configFlags, ritualPath, args].join(" ")
   quit(execCmd(command))
