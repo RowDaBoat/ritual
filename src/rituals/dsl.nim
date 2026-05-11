@@ -182,7 +182,8 @@ template ritual*(ritualName: string, body: untyped) =
     let rootJob = jobStack[0]
     rootJob.scriptDir = scriptDir
 
-    let registerName = case isPackageRitual
+    let isBuiltin = packageName == "builtin"
+    let registerName = case isPackageRitual or isBuiltin
     of true:  ritualName
     of false: packageName & "." & ritualName
     rituals[registerName] = rootJob
