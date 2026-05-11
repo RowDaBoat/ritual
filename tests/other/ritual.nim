@@ -1,3 +1,4 @@
+{.used.}
 import std/[os, strutils]
 import ../../src/rituals
 

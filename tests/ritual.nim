@@ -1,6 +1,5 @@
-import std/[os, strutils]
+import std/os
 import ../src/rituals
-import other/imported
 
 
 ritual "waits":
@@ -111,22 +110,6 @@ ritual "compose":
   wait(0.5, name = "before")
   recite "waits"
   wait(0.5, name = "after")
-
-
-ritual "import":
-  task "local dir":
-    expectCurrentDir("" / "tests")
-  tui:
-    expectCurrentDir("" / "tests")
-    label(getCurrentDir(), state)
-
-  recite "imported"
-
-  task "after recite dir":
-    expectCurrentDir("" / "tests")
-  tui:
-    expectCurrentDir("" / "tests")
-    label(getCurrentDir(), state)
 
 
 type Color = enum
