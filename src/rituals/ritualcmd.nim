@@ -45,11 +45,20 @@ proc readConfigFlags(configPaths: seq[string]): string =
   result = flags.join(" ")
 
 
+proc ritualSource(dir: string): string =
+  let ritualPath = dir / "ritual.nim"
+ 
+  if fileExists(ritualPath):
+    return ritualPath
+ 
+  return "--eval:\"import rituals\""
+
+
 when isMainModule:
   let (dir, args) = parseArgs()
   let configs = collectConfigs(dir)
   let configFlags = readConfigFlags(configs)
   let flags = "--verbosity:0 --warnings:off --hints:off"
-  let ritualPath = dir / "ritual.nim"
-  let command = @["nim r", flags, configFlags, ritualPath, args].join(" ")
+  let source = ritualSource(dir)
+  let command = @["nim r", flags, configFlags, source, args].join(" ")
   quit(execCmd(command))
