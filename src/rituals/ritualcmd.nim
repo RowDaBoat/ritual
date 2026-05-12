@@ -1,4 +1,4 @@
-import std/[os, osproc, strutils]
+import std/[os, osproc, strutils, terminal]
 
 
 proc parseArgs(): tuple[dir: string, args: string] =
@@ -45,20 +45,25 @@ proc readConfigFlags(configPaths: seq[string]): string =
   result = flags.join(" ")
 
 
-proc ritualSource(dir: string): string =
-  let ritualPath = dir / "ritual.nim"
- 
-  if fileExists(ritualPath):
-    return ritualPath
- 
-  return "--eval:\"import rituals\""
-
+proc canImportRituals(): bool =
+  let (_, exitCode) = execCmdEx("nim check --verbosity:0 --hints:off --eval:\"import rituals\"")
+  exitCode == 0
 
 when isMainModule:
   let (dir, args) = parseArgs()
   let configs = collectConfigs(dir)
   let configFlags = readConfigFlags(configs)
   let flags = "--verbosity:0 --warnings:off --hints:off"
-  let source = ritualSource(dir)
-  let command = @["nim r", flags, configFlags, source, args].join(" ")
-  quit(execCmd(command))
+  let ritualPath = dir / "ritual.nim"
+
+  if fileExists(ritualPath):
+    let command = @["nim r", flags, configFlags, ritualPath, args].join(" ")
+    quit(execCmd(command))
+  elif canImportRituals():
+    let evalFlags = "--eval:\"import rituals\""
+    let command = @["nim r", flags, configFlags, evalFlags, "-- ", args].join(" ")
+    quit(execCmd(command))
+  else:
+    styledEcho fgRed, "Error: ", resetStyle, "The 'rituals' package is not installed."
+    styledEcho "Add its path via --path in a nim.cfg, or install it with a package manager."
+    quit(1)
