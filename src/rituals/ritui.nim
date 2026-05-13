@@ -48,18 +48,16 @@ proc drawFooter*(vtui: var Vtui) =
 proc beginFrame*(vtui: var Vtui) =
   if vtui.previousLines > 0:
     stdout.write cursorUp(vtui.previousLines)
-
-  for i in 0 ..< vtui.previousLines:
-    stdout.write eraseLine & "\n"
-
-  if vtui.previousLines > 0:
-    stdout.write cursorUp(vtui.previousLines)
-
   stdout.write "\r"
   vtui.drawnLines = 0
 
 
 proc endFrame*(vtui: var Vtui) =
+  let extra = vtui.previousLines - vtui.drawnLines
+  if extra > 0:
+    for i in 0 ..< extra:
+      stdout.write eraseLine & "\n"
+    stdout.write cursorUp(extra)
   vtui.previousLines = vtui.drawnLines
   stdout.flushFile()
 

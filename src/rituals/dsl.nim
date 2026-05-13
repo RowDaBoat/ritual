@@ -155,17 +155,21 @@ template ritual*(ritualName: string, body: untyped) =
     template recite(targetName: string) {.used.} =
       flushPending(pendingChild)
 
-      if not rituals.hasKey(targetName):
+      let resolvedName =
+        if '.' in targetName: targetName
+        else: packageName & "." & targetName
+
+      if not rituals.hasKey(resolvedName):
         if shouldExecute:
-          let errorMessage = "can't recite unknown ritual: '" & targetName & "'"
+          let errorMessage = "can't recite unknown ritual: '" & resolvedName & "'"
           ritualMonitor[].fail(ritualName, errorMessage, "")
           pool.shutdown()
           quit(1)
-
-      if jobStack.len == 1:
-        pendingChild = rituals[targetName]
       else:
-        jobStack[^1].children.add rituals[targetName]
+        if jobStack.len == 1:
+          pendingChild = rituals[resolvedName]
+        else:
+          jobStack[^1].children.add rituals[resolvedName]
 
     jobStack.add jobs.sequential()
 
@@ -173,12 +177,13 @@ template ritual*(ritualName: string, body: untyped) =
     rootJob.scriptDir = scriptDir
 
     let isBuiltin = packageName == "builtin"
-    let registerName = case isPackageRitual or isBuiltin
-    of true:  ritualName
-    of false: packageName & "." & ritualName
+    let qualifiedName = packageName & "." & ritualName
+    let registerName = if isBuiltin: ritualName else: qualifiedName
     rituals[registerName] = rootJob
 
-    shouldExecute = paramCount() >= 1 and paramStr(1) == registerName
+    let invokedName = if paramCount() >= 1: paramStr(1) else: ""
+    shouldExecute = invokedName == ritualName and (isPackageRitual or isBuiltin) or
+                    invokedName == qualifiedName
     if shouldExecute:
       ritualExecuted = true
       pool = newWorkerPool()
