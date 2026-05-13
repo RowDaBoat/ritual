@@ -67,16 +67,16 @@ template ritual*(ritualName: string, body: untyped) =
 
     template task(taskName: string, taskBody: untyped) {.used.} =
       flushPending(pendingChild)
-      let taskLogPath = logCounter.nextLogPath(taskName)
       let job = run(taskName, nil)
       job.scriptDir = scriptDir
+      job.logPath = logCounter.nextLogPath(taskName)
 
       job.procedure = proc() =
         {.cast(gcsafe).}:
           cwdLock.acquire()
           setCurrentDir(job.scriptDir)
           cwdLock.release()
-        let taskLog {.inject, used.} = newTaskLog(taskLogPath)
+        let taskLog {.inject, used.} = newTaskLog(job.logPath)
 
         template log(message: string) {.used.} =
           taskLog.log(message)
@@ -86,7 +86,7 @@ template ritual*(ritualName: string, body: untyped) =
         except Exception as error:
           job.state = Failed
           {.cast(gcsafe).}:
-            ritualMonitor[].fail(taskName, error.msg, taskLogPath)
+            ritualMonitor[].fail(job.name, error.msg, job.logPath)
           quit(1)
         finally:
           taskLog.close()
