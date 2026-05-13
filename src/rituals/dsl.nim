@@ -182,13 +182,15 @@ template ritual*(ritualName: string, body: untyped) =
     rituals[registerName] = rootJob
 
     let invokedName = if paramCount() >= 1: paramStr(1) else: ""
-    shouldExecute = invokedName == ritualName and (isPackageRitual or isBuiltin) or
-                    invokedName == qualifiedName
-    if shouldExecute:
+    let executePackageOrBuiltin = invokedName == ritualName and (isPackageRitual or isBuiltin)
+    let executeQualified = invokedName == qualifiedName
+
+    if executePackageOrBuiltin or executeQualified:
       ritualExecuted = true
+      shouldExecute = true
       pool = newWorkerPool()
       setCurrentDir(scriptDir)
-      ritualMonitor[] = startMonitor(registerName, rootJob)
+      ritualMonitor[] = startMonitor(ritualName, rootJob)
 
     body
 
