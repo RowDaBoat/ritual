@@ -1,4 +1,6 @@
-import std/[os, osproc, streams, httpclient, strutils, terminal]
+import std/[os, osproc, streams, httpclient, strutils, terminal, exitprocs]
+when defined(posix):
+  import std/posix
 import output
 
 
@@ -125,6 +127,32 @@ template notice*(message: string, name: string = "notice") =
     discard
   tui:
     label(message, state)
+
+
+proc replaceProcess(command: string) =
+  when defined(posix):
+    var cargs = allocCStringArray(["sh", "-c", command])
+    discard execvp(cargs[0], cargs)
+    quit(1)
+  else:
+    let exitCode = execShellCmd(command)
+    quit(exitCode)
+
+
+template runAfter*(command: string, runAfterLabel: string = "", name: string = "runAfter") =
+  let displayLabel = if runAfterLabel == "": command else: runAfterLabel
+
+  task name:
+    addExitProc(proc() =
+      if programResult == 0:
+        replaceProcess(command)
+    )
+
+  tui:
+    if state == Done:
+      label(bold & displayLabel, state)
+    else:
+      label(displayLabel, state)
 
 
 template compile*(nim: Nim, file: string, flags: string = "", name: string = "nim.compile") =
