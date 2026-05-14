@@ -1,6 +1,5 @@
 import std/[os, osproc, sequtils, strutils, terminal]
 
-
 proc parseArgs(): tuple[dir: string, args: string] =
   result.dir = "."
   var forwarded: seq[string]
@@ -19,58 +18,61 @@ proc parseArgs(): tuple[dir: string, args: string] =
   result.args = forwarded.join(" ")
 
 
-proc collectConfigs(dir: string): seq[string] =
+proc findConfig(dir: string): string =
   var current = dir.absolutePath()
 
   while true:
     let configPath = current / "ritual.cfg"
     if fileExists(configPath):
-      result.add configPath
+      return configPath
 
     let parent = parentDir(current)
     if parent == current:
-      break
+      return ""
     current = parent
 
 
-proc isExcluded(flag: string, excludePath: string): bool =
-  flag.startsWith("--import:") and
-    excludePath.len > 0 and
-    expandFilename(flag.split(":", maxsplit = 1)[1]) == excludePath
-
-
-proc readConfigFlags(configPaths: seq[string], exclude: string): string =
-  let excludePath = if exclude.len > 0: expandFilename(exclude) else: ""
-
-  configPaths
-    .mapIt(readFile(it).splitLines())
-    .foldl(a & b)
+proc readConfigFlags(configPath: string): string =
+  readFile(configPath).splitLines()
     .mapIt(it.strip())
     .filterIt(it.len > 0 and not it.startsWith("#"))
-    .filterIt(not it.isExcluded(excludePath))
     .join(" ")
 
 
-proc canImportRituals(): bool =
-  let (_, exitCode) = execCmdEx("nim check --verbosity:0 --hints:off --eval:\"import rituals\"")
-  exitCode == 0
+proc initWorkspace(dir: string) =
+  let root = dir.absolutePath()
+  let ritualsPath = root / "rituals" / "src"
+  let ritualPaths = walkDir(root)
+    .toSeq()
+    .filterIt(it.kind == pcDir)
+    .filterIt(fileExists(it.path / "ritual.nim"))
+    .mapIt(it.path)
+
+  if not dirExists(root / "rituals"):
+    styledEcho fgYellow, "Warning: ", resetStyle, "'rituals' repo not found in workspace, add 'rituals' as a dependency or clone it from 'git@github.com:RowDaBoat/rituals.git' into this workspace."
+
+  var config = "--path:" & ritualsPath & "\n"
+  for path in ritualPaths:
+    config.add "--import:" & path / "ritual.nim" & "\n"
+
+  let configPath = root / "ritual.cfg"
+  writeFile(configPath, config)
+
 
 when isMainModule:
   let (dir, args) = parseArgs()
-  let configs = collectConfigs(dir)
-  let flags = "--verbosity:0 --warnings:off --hints:off"
-  let ritualPath = dir / "ritual.nim"
 
-  if fileExists(ritualPath):
-    let configFlags = readConfigFlags(configs, ritualPath)
-    let command = @["nim r", flags, configFlags, ritualPath, args].join(" ")
-    quit(execCmd(command))
-  elif canImportRituals():
-    let configFlags = readConfigFlags(configs, "")
-    let evalFlags = "--eval:\"import rituals\""
-    let command = @["nim r", flags, configFlags, evalFlags, "-- ", args].join(" ")
-    quit(execCmd(command))
-  else:
-    styledEcho fgRed, "Error: ", resetStyle, "The 'rituals' package is not installed."
-    styledEcho "Add its path via --path in a nim.cfg, or install it with a package manager."
+  if args.strip() == "init":
+    initWorkspace(dir)
+    quit(0)
+
+  let config = findConfig(dir)
+
+  if config.len == 0:
+    styledEcho fgRed, "Error: ", resetStyle, "No 'ritual.cfg' found. Run 'ritual init' to create one."
     quit(1)
+
+  let configFlags = readConfigFlags(config)
+  let flags = "--verbosity:0 --warnings:off --hints:off --skipUserCfg --skipParentCfg --skipProjCfg"
+  let command = @["nim r", flags, configFlags, "--eval:\"discard\"", "--", args].join(" ")
+  quit(execCmd(command))
