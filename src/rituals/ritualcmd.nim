@@ -1,4 +1,4 @@
-import std/[os, osproc, strutils, terminal]
+import std/[os, osproc, sequtils, strutils, terminal]
 
 
 proc parseArgs(): tuple[dir: string, args: string] =
@@ -33,16 +33,22 @@ proc collectConfigs(dir: string): seq[string] =
     current = parent
 
 
-proc readConfigFlags(configPaths: seq[string]): string =
-  var flags: seq[string]
+proc isExcluded(flag: string, excludePath: string): bool =
+  flag.startsWith("--import:") and
+    excludePath.len > 0 and
+    expandFilename(flag.split(":", maxsplit = 1)[1]) == excludePath
 
-  for path in configPaths:
-    for line in readFile(path).splitLines():
-      let trimmed = line.strip()
-      if trimmed.len > 0 and not trimmed.startsWith("#"):
-        flags.add trimmed
 
-  result = flags.join(" ")
+proc readConfigFlags(configPaths: seq[string], exclude: string): string =
+  let excludePath = if exclude.len > 0: expandFilename(exclude) else: ""
+
+  configPaths
+    .mapIt(readFile(it).splitLines())
+    .foldl(a & b)
+    .mapIt(it.strip())
+    .filterIt(it.len > 0 and not it.startsWith("#"))
+    .filterIt(not it.isExcluded(excludePath))
+    .join(" ")
 
 
 proc canImportRituals(): bool =
@@ -52,14 +58,15 @@ proc canImportRituals(): bool =
 when isMainModule:
   let (dir, args) = parseArgs()
   let configs = collectConfigs(dir)
-  let configFlags = readConfigFlags(configs)
   let flags = "--verbosity:0 --warnings:off --hints:off"
   let ritualPath = dir / "ritual.nim"
 
   if fileExists(ritualPath):
+    let configFlags = readConfigFlags(configs, ritualPath)
     let command = @["nim r", flags, configFlags, ritualPath, args].join(" ")
     quit(execCmd(command))
   elif canImportRituals():
+    let configFlags = readConfigFlags(configs, "")
     let evalFlags = "--eval:\"import rituals\""
     let command = @["nim r", flags, configFlags, evalFlags, "-- ", args].join(" ")
     quit(execCmd(command))
