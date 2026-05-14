@@ -21,6 +21,7 @@ type MonitorArgs = object
   shutdownChannel: ptr Channel[Shutdown]
   rootJob: Job
   name: string
+  plaintext: bool
 
 
 type Monitor* = object
@@ -90,6 +91,57 @@ proc renderFrame(vtui: var Vtui, rootJob: Job, renderOrder: var seq[Job], maxLen
   inc vtui.tick
 
 
+proc stateLabel(state: TaskState): string =
+  case state
+  of Pending: "[ Pending ]"
+  of Running: "[ Running ]"
+  of Done:    "[ Done ]"
+  of Chosen:  "[ Chosen ]"
+  of Failed:  "[ Failed ]"
+
+
+proc collectAll(job: Job, jobs: var seq[Job]) =
+  case job.kind
+  of Run:
+    jobs.add job
+  else:
+    for child in job.children:
+      collectAll(child, jobs)
+
+
+proc plaintextLoop(args: MonitorArgs) {.thread.} =
+  stdout.write "ritual: " & args.name & "\n"
+  stdout.flushFile()
+
+  var knownStates: seq[TaskState]
+  var allJobs: seq[Job]
+
+  while true:
+    {.cast(gcsafe).}:
+      allJobs.setLen(0)
+      collectAll(args.rootJob, allJobs)
+
+      while knownStates.len < allJobs.len:
+        knownStates.add Pending
+
+      for index, job in allJobs:
+        if job.state != knownStates[index]:
+          knownStates[index] = job.state
+          stdout.write job.name & ": " & $job.state & "\n"
+          stdout.flushFile()
+
+    let shutdown = args.shutdownChannel[].tryRecv()
+    if shutdown.dataAvailable:
+      case shutdown.msg.kind
+      of Stop:
+        discard
+      of Fail:
+        printError(shutdown.msg)
+      break
+
+    sleep(50)
+
+
 proc loop(args: MonitorArgs) {.thread.} =
   var vtui: Vtui
   vtui.drawHeader(args.name)
@@ -117,13 +169,17 @@ proc loop(args: MonitorArgs) {.thread.} =
     sleep(16)
 
 
-proc startMonitor*(name: string, rootJob: Job): Monitor =
+proc startMonitor*(name: string, rootJob: Job, plaintext: bool = false): Monitor =
   result.shutdownChannel = cast[ptr Channel[Shutdown]](allocShared0(sizeof(Channel[Shutdown])))
   result.shutdownChannel[].open()
-  createThread(result.thread, loop, MonitorArgs(
+
+  let threadProc = if plaintext: plaintextLoop else: loop
+
+  createThread(result.thread, threadProc, MonitorArgs(
     shutdownChannel: result.shutdownChannel,
     rootJob: rootJob,
-    name: name
+    name: name,
+    plaintext: plaintext
   ))
 
 

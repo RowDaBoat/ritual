@@ -6,13 +6,21 @@ export ritui, jobs, output
 var rituals: Table[string, Job]
 var ritualMonitor: ptr Monitor = cast[ptr Monitor](allocShared0(sizeof(Monitor)))
 var ritualExecuted = false
+var plaintextMode = false
 var cwdLock*: Lock
 
 cwdLock.initLock()
 
+block:
+  for i in 1 .. paramCount():
+    if paramStr(i) == "--plaintext":
+      plaintextMode = true
+      break
+
 
 proc sigint() {.noconv.} =
-  stdout.write reset & showCursor & "\n"
+  if not plaintextMode:
+    stdout.write reset & showCursor & "\n"
   stdout.flushFile()
   quit(0)
 
@@ -190,7 +198,7 @@ template ritual*(ritualName: string, body: untyped) =
       shouldExecute = true
       pool = newWorkerPool()
       setCurrentDir(scriptDir)
-      ritualMonitor[] = startMonitor(ritualName, rootJob)
+      ritualMonitor[] = startMonitor(ritualName, rootJob, plaintextMode)
 
     body
 
