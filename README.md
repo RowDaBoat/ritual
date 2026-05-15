@@ -24,52 +24,43 @@ ritual "build":
   move("linux-6.6.tar.xz", "output/linux.tar.xz")
   move("debian-13.4.0-amd64-netinst.iso", "output/debian.iso")
 ```
-If `rituals` is in the dependencies, just run it with:
-```sh
-nim r ritual.nim build
-```
 
 
 ## Installation
-### Lean
-- Add ritual as a dependency in your project's `.nimble` file:
-  ```nim
-  requires "git@github.com:RowDaBoat/rituals.git"
-  ```
-- Resolve the dependency with whatever method you use: `nimby`, `nimble`, or a `--path:` flag.
-- Run as before: `nim r ritual.nim {ritual_name}`
-
-
-### Complete
-To install `rituals` completely run:
+Clone the repository and run:
 ```sh
-nim r --path:/path/to/rituals/src --eval:"import rituals" -- install-ritual
+cd rituals && nim r install.nim
 ```
-Now you can run rituals with just:
+This compiles and installs the `ritual` command-line tool.
+
+
+## Usage
+Run the following in the workspace root to initialize it:
 ```sh
-ritual {ritual_name}
+ritual init
 ```
-You can also work with flat workspaces.
+This scans the current directory for subdirectories containing `ritual.nim` files and generates a `ritual.cfg`.
+
+Run a ritual:
+```sh
+ritual build           # unqualified (uses current directory as package name)
+ritual mypackage.build # run a qualified from anywhere in the workspace
+```
+
+List all registered rituals:
+```sh
+ritual list
+```
 
 
-## Flat workspaces: `ritual`+`nimby`
-`nimby`'s workflow is to have a flat workspace with all dependencies. `rituals` builds on top of that idea, allowing to create complex pipelines by calling rituals from other packages.
+## Flat workspaces
+`rituals` works well with flat workspaces (e.g. `nimby`), where all dependencies live side by side. Each package can have its own `ritual.nim`, and `ritual init` wires them together via `ritual.cfg`.
 
-Using both allows an approach to dependency management that lies between monorepos and traditional dependencies.
-
-- Creating a workspace:
-  ```sh
-  mkdir my.workspace && cd my.workspace
-  # Clone all dependencies and create a 'nim.cfg' pointing to each one.
-  nimby install git@github.com:my/project.git
-  # Create a 'ritual.cfg' file that points to each 'ritual.nim' on each dependency.
-  ritual workspace
-  ```
-- Once that is done, the following can be used on `ritual.nim` files:
-  ```nim
-  ritual "my-ritual":
-    recite "otherpackage.other-ritual"
-  ```
+Once the workspace is initialized, rituals can invoke each other across packages:
+```nim
+ritual "my-ritual":
+  recite "otherpackage.other-ritual"
+```
 
 
 ## Features
@@ -77,7 +68,7 @@ Using both allows an approach to dependency management that lies between monorep
 - Real-time TUI with animated progress bars and status labels.
 - Built-in tasks: `cmd`, `download`, `copy`, `move`, `mkdir`, `remove`, `wait`.
 - Nim toolchain tasks: `nim.compile`, `nim.run`, `nim.doc`, `nim.command`.
-- Ritual composition via `recite` to invoke rituals from the same or other packages.
+- Ritual composition via `recite` to invoke rituals from other packages.
 - Custom tasks with `task:` and custom rendering with `tui:`.
 - Per-task log output with configurable output directory.
 - Error handling with colored failure states and log output on crash.
@@ -86,7 +77,7 @@ Using both allows an approach to dependency management that lies between monorep
 ## DSL
 - Use the `ritual {name}: {body}` template to define a list of executable tasks.
 - Use `parallel: {body}` and `sequential: {body}` to run tasks sequentially or in parallel, default is sequential. Both can be nested to wire the execution.
-- Current tasks are: `cmd`, `copy`, `move`, `mkdir`, `remove`, `download`, `wait`, `nim.compile`, `nim.run`, `nim.doc`, `nim.command`.
+- Current tasks are: `cmd`, `copy`, `move`, `mkdir`, `remove`, `download`, `wait`, `runAfter`, `nim.compile`, `nim.run`, `nim.doc`, `nim.command`.
 - Creating a task is done by using `task {name}:`, `tui:`. The `tui` block receives `state`:
   ```nim
   task "compile":
@@ -118,13 +109,10 @@ Each nim task accepts an optional `name` parameter for display and logging.
 
 
 ## Ritual composition
-Use `recite` to invoke a previously defined ritual from within another:
+Use `recite` to invoke a ritual from another package:
 ```nim
-ritual "compile":
-  nim.compile "src/app.nim", flags = "-d:release"
-
 ritual "release":
-  recite "compile"
+  recite "otherpackage.compile"
   copy("bin/app", "dist/app")
 ```
 

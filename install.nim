@@ -1,2 +1,2 @@
 import rituals
-runRitual("install-ritual")
+runRitual("builtin.install-ritual")

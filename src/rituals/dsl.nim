@@ -173,11 +173,7 @@ template ritual*(ritualName: string, body: untyped) =
     let rootJob = jobStack[0]
     rootJob.scriptDir = scriptDir
 
-    let isBuiltin = packageName == "builtin"
-    let qualifiedName = packageName & "." & ritualName
-    let registerName = if isBuiltin: ritualName else: qualifiedName
-
     body
 
     flushPending(pendingChild)
-    rituals[registerName] = rootJob
+    rituals[packageName & "." & ritualName] = rootJob
