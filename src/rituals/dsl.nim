@@ -1,11 +1,10 @@
-import std/[os, exitprocs, strformat, terminal, tables, locks]
+import std/[os, terminal, tables, locks]
 import ritui, jobs, output, workers, monitor
 export ritui, jobs, output
 
 
 var rituals: Table[string, Job]
 var ritualMonitor: ptr Monitor = cast[ptr Monitor](allocShared0(sizeof(Monitor)))
-var ritualExecuted = false
 var plaintextMode = false
 var cwdLock*: Lock
 
@@ -25,20 +24,7 @@ proc sigint() {.noconv.} =
   quit(0)
 
 
-proc exitCheck() {.noconv.} =
-  if ritualExecuted:
-    return
-
-  if paramCount() < 1:
-    styledEcho fgRed, "Error: ", resetStyle, "No ritual to invoke."
-  else:
-    echo &"Unknown ritual: '{paramStr(1)}'"
-
-  quit(1)
-
-
 proc listRituals*() =
-  ritualExecuted = true
   for name in rituals.keys:
     echo name
 
@@ -48,7 +34,6 @@ proc runRitual*(name: string) =
     styledEcho fgRed, "Error: ", resetStyle, "Unknown ritual: '", name, "'"
     quit(1)
 
-  ritualExecuted = true
   let job = rituals[name]
   let pool = newWorkerPool()
   setCurrentDir(job.scriptDir)
@@ -65,7 +50,6 @@ proc runRitual*(name: string) =
 
 
 setControlCHook(sigint)
-addExitProc(exitCheck)
 
 
 template ritual*(ritualName: string, body: untyped) =
