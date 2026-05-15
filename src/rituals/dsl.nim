@@ -10,12 +10,6 @@ var cwdLock*: Lock
 
 cwdLock.initLock()
 
-block:
-  for i in 1 .. paramCount():
-    if paramStr(i) == "--plaintext":
-      plaintextMode = true
-      break
-
 
 proc sigint() {.noconv.} =
   if not plaintextMode:
@@ -29,11 +23,12 @@ proc listRituals*() =
     echo name
 
 
-proc runRitual*(name: string) =
+proc runRitual*(name: string, plaintext = false) =
   if not rituals.hasKey(name):
     styledEcho fgRed, "Error: ", resetStyle, "Unknown ritual: '", name, "'"
     quit(1)
 
+  plaintextMode = plaintext
   let job = rituals[name]
   let pool = newWorkerPool()
   setCurrentDir(job.scriptDir)

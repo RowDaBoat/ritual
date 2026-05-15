@@ -1,7 +1,7 @@
-import std/[os, osproc, sequtils, strutils, terminal]
+import std/[os, osproc, sequtils, strutils, terminal, strformat]
 
 
-proc parseArgs(): tuple[dir: string, args: string] =
+proc parseArgs(): tuple[dir: string, args: string, plaintext: bool] =
   result.dir = "."
   var forwarded: seq[string]
   var i = 1
@@ -11,6 +11,8 @@ proc parseArgs(): tuple[dir: string, args: string] =
 
     if param.startsWith("--dir:"):
       result.dir = param[6..^1]
+    elif param == "--plaintext":
+      result.plaintext = true
     else:
       forwarded.add param
 
@@ -61,7 +63,7 @@ proc initWorkspace(dir: string) =
 
 
 when isMainModule:
-  let (dir, args) = parseArgs()
+  let (dir, args, plaintext) = parseArgs()
 
   if args.strip() == "init":
     initWorkspace(dir)
@@ -75,12 +77,18 @@ when isMainModule:
 
   let configFlags = readConfigFlags(config)
   let flags = "--verbosity:0 --warnings:off --hints:off --skipUserCfg --skipParentCfg --skipProjCfg"
+  var eval = ""
 
   if args.strip() == "list":
-    let eval = "--eval:\"import rituals; listRituals()\""
-    let command = @["nim r", flags, configFlags, eval].join(" ")
-    quit(execCmd(command))
+    eval = "--eval:\"import rituals; listRituals()\""
+  else:
+    let name = args.strip()
+    let packageName = dir.absolutePath.lastPathPart
+    let qualifiedName = if '.' in name: name else: &"{packageName}.{name}"
+    let ritual = &"\\\"{qualifiedName}\\\""
+    var nimCode = "import rituals;"
+    nimCode &=   &"runRitual({ritual}, {plaintext})"
+    eval = &"--eval:\"{nimCode}\""
 
-  let eval = "--eval:\"import rituals; runRitual(\\\"" & args.strip() & "\\\")\""
   let command = @["nim r", flags, configFlags, eval].join(" ")
   quit(execCmd(command))
