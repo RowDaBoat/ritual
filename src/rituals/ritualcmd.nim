@@ -74,5 +74,12 @@ when isMainModule:
 
   let configFlags = readConfigFlags(config)
   let flags = "--verbosity:0 --warnings:off --hints:off --skipUserCfg --skipParentCfg --skipProjCfg"
-  let command = @["nim r", flags, configFlags, "--eval:\"discard\"", "--", args].join(" ")
+
+  if args.strip() == "list":
+    let eval = "--eval:\"import rituals; listRituals()\""
+    let command = @["nim r", flags, configFlags, eval].join(" ")
+    quit(execCmd(command))
+
+  let eval = "--eval:\"import rituals; runRitual(\\\"" & args.strip() & "\\\")\""
+  let command = @["nim r", flags, configFlags, eval].join(" ")
   quit(execCmd(command))

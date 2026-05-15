@@ -1,4 +1,4 @@
-import std/[os, exitprocs, strformat, terminal, tables, locks, compilesettings]
+import std/[os, exitprocs, strformat, terminal, tables, locks]
 import ritui, jobs, output, workers, monitor
 export ritui, jobs, output
 
@@ -37,6 +37,33 @@ proc exitCheck() {.noconv.} =
   quit(1)
 
 
+proc listRituals*() =
+  ritualExecuted = true
+  for name in rituals.keys:
+    echo name
+
+
+proc runRitual*(name: string) =
+  if not rituals.hasKey(name):
+    styledEcho fgRed, "Error: ", resetStyle, "Unknown ritual: '", name, "'"
+    quit(1)
+
+  ritualExecuted = true
+  let job = rituals[name]
+  let pool = newWorkerPool()
+  setCurrentDir(job.scriptDir)
+  ritualMonitor[] = startMonitor(name, job, plaintextMode)
+
+  let doneBarrier = newBarrier(1)
+  discard pool.execute(job)
+  pool.send doneBarrier.release
+  doneBarrier.waitSync()
+
+  pool.shutdown()
+  ritualMonitor[].stop()
+  deallocShared(ritualMonitor)
+
+
 setControlCHook(sigint)
 addExitProc(exitCheck)
 
@@ -44,16 +71,11 @@ addExitProc(exitCheck)
 template ritual*(ritualName: string, body: untyped) =
   block:
     let scriptDir = parentDir(instantiationInfo(-1, true).filename)
-    let projectDir = parentDir(querySetting(projectFull))
     let packageName = lastPathPart(scriptDir)
-    let isPackageRitual = scriptDir == projectDir
     let callDir {.inject, used.} = getCurrentDir()
     var jobStack: seq[Job]
     var logCounter = newLogCounter()
-    var pool: WorkerPool = nil
-    var lastBarrier: Barrier = nil
     var pendingChild: Job = nil
-    var shouldExecute = false
 
     proc flushPending(pending: var Job) =
       if pending == nil:
@@ -63,12 +85,6 @@ template ritual*(ritualName: string, body: untyped) =
       pending = nil
 
       jobStack[^1].children.add child
-
-      if shouldExecute and jobStack.len == 1:
-        let doneBarrier = newBarrier(1)
-        lastBarrier = pool.execute(child, lastBarrier)
-        pool.send doneBarrier.release
-        doneBarrier.waitSync()
 
     template sync() {.used.} =
       flushPending(pendingChild)
@@ -167,13 +183,7 @@ template ritual*(ritualName: string, body: untyped) =
         if '.' in targetName: targetName
         else: packageName & "." & targetName
 
-      if not rituals.hasKey(resolvedName):
-        if shouldExecute:
-          let errorMessage = "can't recite unknown ritual: '" & resolvedName & "'"
-          ritualMonitor[].fail(ritualName, errorMessage, "")
-          pool.shutdown()
-          quit(1)
-      else:
+      if rituals.hasKey(resolvedName):
         if jobStack.len == 1:
           pendingChild = rituals[resolvedName]
         else:
@@ -187,24 +197,8 @@ template ritual*(ritualName: string, body: untyped) =
     let isBuiltin = packageName == "builtin"
     let qualifiedName = packageName & "." & ritualName
     let registerName = if isBuiltin: ritualName else: qualifiedName
-    rituals[registerName] = rootJob
-
-    let invokedName = if paramCount() >= 1: paramStr(1) else: ""
-    let executePackageOrBuiltin = invokedName == ritualName and (isPackageRitual or isBuiltin)
-    let executeQualified = invokedName == qualifiedName
-
-    if executePackageOrBuiltin or executeQualified:
-      ritualExecuted = true
-      shouldExecute = true
-      pool = newWorkerPool()
-      setCurrentDir(scriptDir)
-      ritualMonitor[] = startMonitor(ritualName, rootJob, plaintextMode)
 
     body
 
     flushPending(pendingChild)
-
-    if shouldExecute:
-      pool.shutdown()
-      ritualMonitor[].stop()
-      deallocShared(ritualMonitor)
+    rituals[registerName] = rootJob
