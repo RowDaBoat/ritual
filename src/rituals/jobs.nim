@@ -49,7 +49,6 @@ proc wrapWithState*(job: Job): proc() =
       raise
 
 
-
 proc execute*(pool: WorkerPool, job: Job, predecessor: Barrier = nil): Barrier {.discardable.} =
   case job.kind
   of Sequential:
