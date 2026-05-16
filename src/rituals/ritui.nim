@@ -33,7 +33,7 @@ const waveLen = 18
 
 proc drawHeader*(vtui: var Vtui, name: string) =
   stdout.write fg(52) & "╭────────────\n"
-  stdout.write fg(52) & "│ " & bold & fg(231) & "⛤ " & fg(160) & "Ritual: " & name & "\n"
+  stdout.write fg(52) & "│ " & bold & fg(231) & "⛧ " & fg(160) & "Ritual: " & name & "\n"
   stdout.write fg(52) & "├──────────────────\n"
   stdout.write reset & hideCursor
   stdout.flushFile()
