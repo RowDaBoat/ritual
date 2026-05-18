@@ -16,7 +16,6 @@ type TaskState* = enum
   Pending
   Running
   Done
-  Chosen
   Failed
 
 
@@ -113,9 +112,6 @@ proc drawState*(tick: int, state: TaskState): string =
   of Done:
     rune = fg(88) & "●" & reset
     color = reset
-  of Chosen:
-    rune = fg(160) & "●" & reset
-    color = reset
   of Failed:
     rune = fg(88) & "○" & reset
     color = fg(196)
@@ -137,9 +133,6 @@ proc drawLabel*(ritui: var Ritui, name: string, label: string, maxNameLen: int, 
   of Done:
     rune = fg(88) & "●" & reset
     color = reset
-  of Chosen:
-    rune = fg(196) & "●" & reset
-    color = reset
   of Failed:
     rune = fg(88) & "○" & reset
     color = fg(196)
@@ -151,22 +144,3 @@ proc drawLabel*(ritui: var Ritui, name: string, label: string, maxNameLen: int, 
   inc ritui.drawnLines
 
 
-proc drawOption*(ritui: var Ritui, name: string, label: string, maxNameLen: int, selected: bool, tick: int, state: TaskState) =
-  let paddedName = align(name, maxNameLen)
-  let begin = "\r" & eraseLine & fg(52) & "│ " & fg(88)
-  var rune: string
-  var color: string
-
-  case state
-  of Done:
-    rune = if selected: fg(160) & "●" & reset else: fg(52) & "○" & reset
-    color = if selected: fg(231) else: fg(240)
-  of Failed:
-    rune = fg(88) & "○" & reset
-    color = fg(196)
-  else:
-    rune = if selected: fg(196) & "●" & reset else: fg(236) & "◌" & reset
-    color = if selected: fg(231) else: fg(240)
-
-  stdout.write begin & paddedName & " " & rune & " " & color & label & reset & "\n"
-  inc ritui.drawnLines

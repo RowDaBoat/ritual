@@ -96,7 +96,6 @@ proc stateLabel(state: TaskState): string =
   of Pending: "[ Pending ]"
   of Running: "[ Running ]"
   of Done:    "[ Done ]"
-  of Chosen:  "[ Chosen ]"
   of Failed:  "[ Failed ]"
 
 

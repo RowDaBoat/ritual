@@ -1,5 +1,5 @@
 import std/os
-import ../src/rituals
+import ../../src/rituals
 
 
 ritual "waits":
@@ -110,18 +110,3 @@ ritual "compose":
   wait(0.5, name = "before")
   recite "waits"
   wait(0.5, name = "after")
-
-
-type Color = enum
-  Red
-  Green
-  Blue
-
-
-ritual "choose":
-  var picked: Color
-  choose(picked, Green, "Pick a color")
-  case picked:
-  of Red:   notice("Picked Red")
-  of Green: notice("Picked Green")
-  of Blue:  notice("Picked Blue")

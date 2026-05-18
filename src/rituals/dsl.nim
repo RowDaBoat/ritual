@@ -126,9 +126,6 @@ template ritual*(ritualName: string, body: untyped) =
         template label(text: string, labelState {.inject.}: TaskState = state) {.used.} =
           ritui.drawLabel(name, text, maxNameLen, tick, labelState)
 
-        template option(rowName: string, text: string, selected: bool, optionState {.inject.}: TaskState = state) {.used.} =
-          ritui.drawOption(rowName, text, maxNameLen, selected, tick, optionState)
-
         tuiBody
         {.cast(gcsafe).}:
           cwdLock.release()
