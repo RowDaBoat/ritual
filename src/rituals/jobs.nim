@@ -1,7 +1,7 @@
 import workers, ritui
 
 
-type TuiProc* = proc(vtui: var Vtui, name: string, state: TaskState, maxNameLen: int, tick: int) {.closure.}
+type TuiProc* = proc(ritui: var Ritui, name: string, state: TaskState, maxNameLen: int, tick: int) {.closure.}
 
 
 type JobKind* = enum

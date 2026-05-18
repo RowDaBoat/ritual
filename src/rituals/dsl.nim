@@ -107,7 +107,7 @@ template ritual*(ritualName: string, body: untyped) =
           jobStack[^1].children[^1]
 
       targetJob.renderer = proc(
-        vtui: var Vtui,
+        ritui: var Ritui,
         name: string,
         state {.inject.}: TaskState,
         maxNameLen: int,
@@ -118,16 +118,16 @@ template ritual*(ritualName: string, body: untyped) =
         setCurrentDir(targetJob.scriptDir)
 
         template bar(value: float, barState {.inject.}: TaskState = state) {.used.} =
-          vtui.drawBar(name, "", value, maxNameLen, tick, barState)
+          ritui.drawBar(name, "", value, maxNameLen, tick, barState)
 
         template bar(label: string, value: float, barState {.inject.}: TaskState = state) {.used.} =
-          vtui.drawBar(name, label, value, maxNameLen, tick, barState)
+          ritui.drawBar(name, label, value, maxNameLen, tick, barState)
 
         template label(text: string, labelState {.inject.}: TaskState = state) {.used.} =
-          vtui.drawLabel(name, text, maxNameLen, tick, labelState)
+          ritui.drawLabel(name, text, maxNameLen, tick, labelState)
 
         template option(rowName: string, text: string, selected: bool, optionState {.inject.}: TaskState = state) {.used.} =
-          vtui.drawOption(rowName, text, maxNameLen, selected, tick, optionState)
+          ritui.drawOption(rowName, text, maxNameLen, selected, tick, optionState)
 
         tuiBody
         {.cast(gcsafe).}:

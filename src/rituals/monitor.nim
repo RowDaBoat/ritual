@@ -51,7 +51,7 @@ proc collectActive(job: Job, active: var seq[Job]) =
       collectActive(child, active)
 
 
-proc renderJob(vtui: var Vtui, job: Job, maxLen: int, tick: int) =
+proc renderJob(ritui: var Ritui, job: Job, maxLen: int, tick: int) =
   if job.renderer == nil:
     return
 
@@ -59,7 +59,7 @@ proc renderJob(vtui: var Vtui, job: Job, maxLen: int, tick: int) =
   if job.state == Done:
     jobTick = job.lastTick
 
-  job.renderer(vtui, job.name, job.state, maxLen, jobTick)
+  job.renderer(ritui, job.name, job.state, maxLen, jobTick)
   job.lastTick = jobTick
 
 
@@ -74,21 +74,21 @@ proc printError(signal: Shutdown) =
   stdout.write "\n"
 
 
-proc renderFrame(vtui: var Vtui, rootJob: Job, renderOrder: var seq[Job], maxLen: int) =
+proc renderFrame(ritui: var Ritui, rootJob: Job, renderOrder: var seq[Job], maxLen: int) =
   var newlyActive: seq[Job]
   collectActive(rootJob, newlyActive)
 
   for job in newlyActive:
-    job.startTick = vtui.tick
+    job.startTick = ritui.tick
     renderOrder.add job
 
-  beginFrame(vtui)
+  beginFrame(ritui)
 
   for job in renderOrder:
-    renderJob(vtui, job, maxLen, vtui.tick)
+    renderJob(ritui, job, maxLen, ritui.tick)
 
-  endFrame(vtui)
-  inc vtui.tick
+  endFrame(ritui)
+  inc ritui.tick
 
 
 proc stateLabel(state: TaskState): string =
@@ -143,22 +143,22 @@ proc plaintextLoop(args: MonitorArgs) {.thread.} =
 
 
 proc loop(args: MonitorArgs) {.thread.} =
-  var vtui: Vtui
-  vtui.drawHeader(args.name)
+  var ritui: Ritui
+  ritui.drawHeader(args.name)
 
   var renderOrder: seq[Job]
 
   while true:
     let maxLen = maxNameLen(args.rootJob)
     {.cast(gcsafe).}:
-      renderFrame(vtui, args.rootJob, renderOrder, maxLen)
+      renderFrame(ritui, args.rootJob, renderOrder, maxLen)
 
     let shutdown = args.shutdownChannel[].tryRecv()
     if shutdown.dataAvailable:
       {.cast(gcsafe).}:
-        renderFrame(vtui, args.rootJob, renderOrder, maxLen)
+        renderFrame(ritui, args.rootJob, renderOrder, maxLen)
 
-      vtui.drawFooter()
+      ritui.drawFooter()
       case shutdown.msg.kind
       of Stop:
         discard

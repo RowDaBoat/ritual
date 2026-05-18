@@ -20,7 +20,7 @@ type TaskState* = enum
   Failed
 
 
-type Vtui* = object
+type Ritui* = object
   drawnLines*: int
   previousLines*: int
   tick*: int
@@ -31,7 +31,7 @@ const emptyRunes = ["·", "·", "∴", "∴", "◌", "◌", "✧", "✧", "·", 
 const waveLen = 18
 
 
-proc drawHeader*(vtui: var Vtui, name: string) =
+proc drawHeader*(ritui: var Ritui, name: string) =
   stdout.write fg(52) & "╭────────────\n"
   stdout.write fg(52) & "│ " & bold & fg(231) & "⛧ " & fg(160) & "Ritual: " & name & "\n"
   stdout.write fg(52) & "├──────────────────\n"
@@ -39,31 +39,31 @@ proc drawHeader*(vtui: var Vtui, name: string) =
   stdout.flushFile()
 
 
-proc drawFooter*(vtui: var Vtui) =
+proc drawFooter*(ritui: var Ritui) =
   stdout.write fg(52) & "╰────────────────────────" & "\n"
   stdout.write reset & showCursor
   stdout.flushFile()
 
 
-proc beginFrame*(vtui: var Vtui) =
-  if vtui.previousLines > 0:
-    stdout.write cursorUp(vtui.previousLines)
+proc beginFrame*(ritui: var Ritui) =
+  if ritui.previousLines > 0:
+    stdout.write cursorUp(ritui.previousLines)
   stdout.write "\r"
-  vtui.drawnLines = 0
+  ritui.drawnLines = 0
 
 
-proc endFrame*(vtui: var Vtui) =
-  let extra = vtui.previousLines - vtui.drawnLines
+proc endFrame*(ritui: var Ritui) =
+  let extra = ritui.previousLines - ritui.drawnLines
   if extra > 0:
     for i in 0 ..< extra:
       stdout.write eraseLine & "\n"
     stdout.write cursorUp(extra)
-  vtui.previousLines = vtui.drawnLines
+  ritui.previousLines = ritui.drawnLines
   stdout.flushFile()
 
 
 proc drawBar*(
-  vtui: var Vtui,
+  ritui: var Ritui,
   name: string,
   label: string,
   progress: float,
@@ -101,7 +101,7 @@ proc drawBar*(
   let suffix = if state == Failed: " " & fg(196) & "ERROR"
                else: " " & fg(88) & $formatFloat(percentage, ffDecimal, 2) & "%"
   stdout.write begin & paddedName & " " & bar & suffix & reset & "\n"
-  inc vtui.drawnLines
+  inc ritui.drawnLines
 
 
 proc drawState*(tick: int, state: TaskState): string =
@@ -126,7 +126,7 @@ proc drawState*(tick: int, state: TaskState): string =
   result = rune & " " & color
 
 
-proc drawLabel*(vtui: var Vtui, name: string, label: string, maxNameLen: int, tick: int, state: TaskState) =
+proc drawLabel*(ritui: var Ritui, name: string, label: string, maxNameLen: int, tick: int, state: TaskState) =
   let paddedName = align(name, maxNameLen)
   let begin = "\r" & eraseLine & fg(52) & "│ " & fg(88)
   let idx = (tick div 2) mod waveLen
@@ -148,10 +148,10 @@ proc drawLabel*(vtui: var Vtui, name: string, label: string, maxNameLen: int, ti
     color = reset
 
   stdout.write begin & paddedName & " " & rune & " " & color & label & reset & "\n"
-  inc vtui.drawnLines
+  inc ritui.drawnLines
 
 
-proc drawOption*(vtui: var Vtui, name: string, label: string, maxNameLen: int, selected: bool, tick: int, state: TaskState) =
+proc drawOption*(ritui: var Ritui, name: string, label: string, maxNameLen: int, selected: bool, tick: int, state: TaskState) =
   let paddedName = align(name, maxNameLen)
   let begin = "\r" & eraseLine & fg(52) & "│ " & fg(88)
   var rune: string
@@ -169,4 +169,4 @@ proc drawOption*(vtui: var Vtui, name: string, label: string, maxNameLen: int, s
     color = if selected: fg(231) else: fg(240)
 
   stdout.write begin & paddedName & " " & rune & " " & color & label & reset & "\n"
-  inc vtui.drawnLines
+  inc ritui.drawnLines
